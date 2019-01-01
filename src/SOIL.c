@@ -26,9 +26,12 @@
 	#include <wingdi.h>
 	#include <GL/gl.h>
 #elif defined(__APPLE__) || defined(__APPLE_CC__)
+	// Apple deprecated OpenGL API and put deprecation warnings into their GL headers.
+	#define GL_SILENCE_DEPRECATION
 	/*	I can't test this Apple stuff!	*/
 	#include <OpenGL/gl.h>
 	#include <Carbon/Carbon.h>
+	#undef GL_SILENCE_DEPRECATION
 	#define APIENTRY
 #elif defined(__ANDROID__)
 	#include <GLES/gl.h>
