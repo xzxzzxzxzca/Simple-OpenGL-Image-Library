@@ -12,6 +12,11 @@ else()
   set(LIBRARIES ${OPENGL_LIBRARIES})
 endif()
 
+if(APPLE)
+  find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+  set(LIBRARIES ${LIBRARIES} ${COREFOUNDATION_LIBRARY})
+endif()
+
 file (GLOB SOIL_SOURCES src/*.c)
 file (GLOB SOIL_HEADERS src/*.h)
 
