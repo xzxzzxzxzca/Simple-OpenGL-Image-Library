@@ -95,6 +95,46 @@ typedef void (APIENTRY * P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC) (GLenum target, GLin
 P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC soilGlCompressedTexImage2D = NULL;
 typedef const GLubyte* (APIENTRY * P_SOIL_GLGETSTRINGIPROC) (GLenum name, GLuint index);
 
+void* SOIL_internal_get_GL_proc_address(const char* const proc_name)
+{
+#ifdef WIN32
+	return wglGetProcAddress(proc_name);
+#elif defined(__APPLE__) || defined(__APPLE_CC__)
+	CFBundleRef bundle;
+	CFURLRef bundleURL = CFURLCreateWithFileSystemPath(
+		kCFAllocatorDefault,
+		CFSTR("/System/Library/Frameworks/OpenGL.framework"),
+		kCFURLPOSIXPathStyle,
+		true
+	);
+	CFStringRef procName =
+		CFStringCreateWithCString(kCFAllocatorDefault, proc_name, kCFStringEncodingASCII);
+	bundle = CFBundleCreate( kCFAllocatorDefault, bundleURL );
+	assert( bundle != NULL );
+	return CFBundleGetFunctionPointerForName(bundle, procName);
+	CFRelease( bundleURL );
+	CFRelease( procName );
+	CFRelease( bundle );
+#else
+	return glXGetProcAddressARB((const GLubyte *)proc_name);
+#endif
+}
+
+int SOIL_internal_GL_major_version()
+{
+	static int major_version = 0;
+	if (major_version == 0)
+	{
+		const GLubyte * ver_string = glGetString(GL_VERSION);
+		if (ver_string)
+			 major_version = atoi((const char *) ver_string);
+		else
+			major_version = 0;
+	}
+	return major_version;
+}
+
+
 /**
 https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=727175
 
@@ -114,19 +154,16 @@ static int SOIL_internal_has_OGL_capability(const char * cap)
 	int i;
 	GLint num_ext;
 	const GLubyte * ext_string;
-	int major_version;
-
-	const GLubyte * ver_string = glGetString(GL_VERSION);
-	if (ver_string)
-		 major_version = atoi((const char *) ver_string);
-	else
-		major_version = 0;
+	const int major_version = SOIL_internal_GL_major_version();
 
 	P_SOIL_GLGETSTRINGIPROC soilGlGetStringi =
-		(P_SOIL_GLGETSTRINGIPROC) glXGetProcAddressARB((const GLubyte *) "glGetStringi");
+		(P_SOIL_GLGETSTRINGIPROC) SOIL_internal_get_GL_proc_address("glGetStringi");
 
 	if (major_version >= 3 && soilGlGetStringi) {
 		// OpenGL 3.0+
+		#ifndef GL_NUM_EXTENSIONS
+		#define GL_NUM_EXTENSIONS 0x821D
+		#endif
 		glGetIntegerv(GL_NUM_EXTENSIONS, &num_ext);
 		for (i = 0; i < num_ext; i++) {
 			ext_string = soilGlGetStringi(GL_EXTENSIONS, i);
@@ -2019,46 +2056,14 @@ int query_DXT_capability( void )
 		} else
 		{
 			/*	and find the address of the extension function	*/
-			P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC ext_addr = NULL;
-			#ifdef WIN32
-				ext_addr = (P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC)
-						wglGetProcAddress
-						(
-							"glCompressedTexImage2DARB"
-						);
-			#elif defined(__APPLE__) || defined(__APPLE_CC__)
-				/*	I can't test this Apple stuff!	*/
-				CFBundleRef bundle;
-				CFURLRef bundleURL =
-					CFURLCreateWithFileSystemPath(
-						kCFAllocatorDefault,
-						CFSTR("/System/Library/Frameworks/OpenGL.framework"),
-						kCFURLPOSIXPathStyle,
-						true );
-				CFStringRef extensionName =
-					CFStringCreateWithCString(
-						kCFAllocatorDefault,
-						"glCompressedTexImage2DARB",
-						kCFStringEncodingASCII );
-				bundle = CFBundleCreate( kCFAllocatorDefault, bundleURL );
-				assert( bundle != NULL );
-				ext_addr = (P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC)
-						CFBundleGetFunctionPointerForName
-						(
-							bundle, extensionName
-						);
-				CFRelease( bundleURL );
-				CFRelease( extensionName );
-				CFRelease( bundle );
-			#elif defined(__ANDROID__) || defined(__EMSCRIPTEN__)
-				ext_addr = (P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC)(glCompressedTexImage2D);
+			const P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC ext_addr =
+					(P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC)
+			#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+					glCompressedTexImage2D;
 			#else
-				ext_addr = (P_SOIL_GLCOMPRESSEDTEXIMAGE2DPROC)
-						glXGetProcAddressARB
-						(
-							(const GLubyte *)"glCompressedTexImage2DARB"
-						);
+					SOIL_internal_get_GL_proc_address("glCompressedTexImage2DARB")
 			#endif
+			;
 			/*	Flag it so no checks needed later	*/
 			if( NULL == ext_addr )
 			{
