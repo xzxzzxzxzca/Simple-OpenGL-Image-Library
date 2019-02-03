@@ -28,7 +28,6 @@
 #elif defined(__APPLE__) || defined(__APPLE_CC__)
 	// Apple deprecated OpenGL API and put deprecation warnings into their GL headers.
 	#define GL_SILENCE_DEPRECATION
-	/*	I can't test this Apple stuff!	*/
 	#include <OpenGL/gl.h>
 	#include <Carbon/Carbon.h>
 	#undef GL_SILENCE_DEPRECATION
@@ -41,6 +40,11 @@
 #else
 	#include <GL/gl.h>
 	#include <GL/glx.h>
+#endif
+
+// Copied From gl3.h
+#ifndef GL_RG
+#define GL_RG                             0x8227
 #endif
 
 #include "SOIL.h"
@@ -1280,10 +1284,12 @@ unsigned int
 		switch( channels )
 		{
 		case 1:
-			original_texture_format = GL_LUMINANCE;
+			original_texture_format =
+					SOIL_internal_GL_major_version() >= 3 ? GL_RED : GL_LUMINANCE;
 			break;
 		case 2:
-			original_texture_format = GL_LUMINANCE_ALPHA;
+			original_texture_format =
+					SOIL_internal_GL_major_version() >= 3 ? GL_RG : GL_LUMINANCE_ALPHA;
 			break;
 		case 3:
 			original_texture_format = GL_RGB;
