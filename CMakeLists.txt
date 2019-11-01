@@ -14,6 +14,9 @@ endif()
 
 if(APPLE)
   find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+  if (NOT COREFOUNDATION_LIBRARY)
+    message(FATAL_ERROR "Could not find Apple's CoreFoundation Framework.")
+  endif()
   set(LIBRARIES ${LIBRARIES} ${COREFOUNDATION_LIBRARY})
 endif()
 
